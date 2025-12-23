@@ -37,7 +37,15 @@ class ActivateSkillToolInvocation extends BaseToolInvocation<
   }
 
   getDescription(): string {
-    return `activating skill "${this.params.name}"`;
+    const skillName = this.params.name;
+    const skill = this.config
+      .getSkillManager()
+      .getSkills()
+      .find((s) => s.name === skillName);
+    if (skill) {
+      return `activating skill "${skillName}": ${skill.description}`;
+    }
+    return `activating skill "${skillName}"`;
   }
 
   async execute(_signal: AbortSignal): Promise<ToolResult> {

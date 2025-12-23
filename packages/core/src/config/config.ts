@@ -1698,7 +1698,7 @@ export class Config {
     registerCoreTool(WebFetchTool, this);
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
-    registerCoreTool(ActivateSkillTool, this);
+    registerCoreTool(ActivateSkillTool, this, this.messageBus);
     registerCoreTool(WebSearchTool, this);
     if (this.getUseWriteTodos()) {
       registerCoreTool(WriteTodosTool, this);

@@ -34,6 +34,14 @@ describe('ActivateSkillTool', () => {
     tool = new ActivateSkillTool(mockConfig);
   });
 
+  it('should return enhanced description', () => {
+    const params = { name: 'test-skill' };
+    const invocation = tool.build(params);
+    expect(invocation.getDescription()).toBe(
+      'activating skill "test-skill": A test skill',
+    );
+  });
+
   it('should activate a valid skill and return its content', async () => {
     const params = { name: 'test-skill' };
     const invocation = tool.build(params);

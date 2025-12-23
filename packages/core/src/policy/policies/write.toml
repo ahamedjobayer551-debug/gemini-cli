@@ -71,3 +71,8 @@ required_context = ["environment"]
 toolName = "web_fetch"
 decision = "ask_user"
 priority = 10
+
+[[rule]]
+toolName = "activate_skill"
+decision = "ask_user"
+priority = 10
