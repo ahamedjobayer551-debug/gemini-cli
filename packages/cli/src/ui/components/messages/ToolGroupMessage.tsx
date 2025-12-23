@@ -63,7 +63,7 @@ export const ToolGroupMessage: React.FC<ToolGroupMessageProps> = ({
       t.name.startsWith('Skill: '),
   );
   const borderColor = isSkillActivation
-    ? theme.text.accent
+    ? theme.text.link
     : (isShellCommand && hasPending) || isEmbeddedShellFocused
       ? theme.ui.symbol
       : hasPending

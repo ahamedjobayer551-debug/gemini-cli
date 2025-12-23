@@ -32,7 +32,7 @@ export const SkillsList: React.FC<SkillsListProps> = ({
       <Box flexDirection="column">
         <Text
           bold
-          color={skill.disabled ? theme.text.secondary : theme.text.accent}
+          color={skill.disabled ? theme.text.secondary : theme.text.link}
         >
           {skill.name}
         </Text>

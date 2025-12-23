@@ -42,7 +42,7 @@ export const ToolStatusIndicator: React.FC<ToolStatusIndicatorProps> = ({
     name === 'Activate Skill' ||
     name.startsWith('Skill: ');
   const statusColor = isShell ? theme.ui.symbol : theme.status.warning;
-  const skillIconColor = theme.text.accent;
+  const skillIconColor = theme.text.link;
 
   return (
     <Box minWidth={STATUS_INDICATOR_WIDTH}>
@@ -102,7 +102,7 @@ export const ToolInfo: React.FC<ToolInfoProps> = ({
     name.startsWith('Skill: ');
   const nameColor = React.useMemo<string>(() => {
     if (isSkill) {
-      return theme.text.accent;
+      return theme.text.link;
     }
     switch (emphasis) {
       case 'high':
