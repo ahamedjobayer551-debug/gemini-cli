@@ -147,21 +147,151 @@ export class BrowserTools {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async moveMouse(page: any, x: number, y: number): Promise<void> {
+    await page.evaluate(
+      ({ x, y }: { x: number; y: number }) => {
+        let cursor = document.getElementById('gemini-cursor');
+        if (!cursor) {
+          cursor = document.createElement('div');
+          cursor.id = 'gemini-cursor';
+          cursor.style.position = 'fixed';
+          cursor.style.zIndex = '2147483648';
+          cursor.style.pointerEvents = 'none';
+          cursor.style.transition =
+            'top 0.2s ease-out, left 0.2s ease-out, opacity 0.2s ease-in-out, transform 0.1s ease-in-out, background-color 0.1s ease-in-out, width 0.2s, height 0.2s, border-radius 0.2s';
+          cursor.style.transform = 'translate(-50%, -50%)';
+          cursor.style.left = '50vw';
+          cursor.style.top = '50vh';
+          document.body.appendChild(cursor);
+          cursor.getBoundingClientRect();
+        }
+        cursor.style.width = '20px';
+        cursor.style.height = '20px';
+        cursor.style.borderRadius = '50%';
+        cursor.style.boxShadow =
+          '0 0 10px 2px rgba(0, 102, 255, 0.8), inset 0 0 5px rgba(0, 102, 255, 0.5)';
+        cursor.style.opacity = '1';
+        cursor.style.left = `${x}px`;
+        cursor.style.top = `${y}px`;
+        cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+        cursor.style.backgroundColor = 'rgba(0, 102, 255, 0.3)';
+      },
+      { x, y },
+    );
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  private async showScrollIndicator(
+    page: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    direction: string,
+  ): Promise<void> {
+    await page.evaluate((dir: string) => {
+      let cursor = document.getElementById('gemini-cursor');
+      if (!cursor) {
+        cursor = document.createElement('div');
+        cursor.id = 'gemini-cursor';
+        cursor.style.position = 'fixed';
+        cursor.style.zIndex = '2147483648';
+        cursor.style.pointerEvents = 'none';
+        cursor.style.transition =
+          'top 0.2s ease-out, left 0.2s ease-out, opacity 0.2s ease-in-out, transform 0.1s ease-in-out, background-color 0.1s ease-in-out, width 0.2s, height 0.2s, border-radius 0.2s';
+        cursor.style.transform = 'translate(-50%, -50%)';
+        document.body.appendChild(cursor);
+      }
+      cursor.style.width = '20px';
+      cursor.style.height = '30px';
+      cursor.style.borderRadius = '8px';
+      cursor.style.left = '50vw';
+      cursor.style.top = '50vh';
+      cursor.style.opacity = '1';
+      cursor.style.transform = 'translate(-50%, -50%)';
+      const blue = 'rgba(0, 102, 255, 1)';
+      const transparentBlue = 'rgba(0, 102, 255, 0.2)';
+      if (dir === 'up') {
+        cursor.style.background = `linear-gradient(to top, ${transparentBlue}, ${blue})`;
+        cursor.style.boxShadow = `0 -5px 10px ${transparentBlue}`;
+      } else if (dir === 'down') {
+        cursor.style.background = `linear-gradient(to bottom, ${transparentBlue}, ${blue})`;
+        cursor.style.boxShadow = `0 5px 10px ${transparentBlue}`;
+      } else {
+        cursor.style.background = transparentBlue;
+        cursor.style.boxShadow = `0 0 10px ${transparentBlue}`;
+      }
+      setTimeout(() => {
+        const offset = dir === 'up' ? -20 : dir === 'down' ? 20 : 0;
+        cursor.style.transform = `translate(-50%, calc(-50% + ${offset}px))`;
+        cursor.style.opacity = '0';
+      }, 300);
+    }, direction);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async animateClick(page: any): Promise<void> {
+    await page.evaluate(() => {
+      const cursor = document.getElementById('gemini-cursor');
+      if (cursor) {
+        cursor.style.transform = 'translate(-50%, -50%) scale(1.2)';
+        cursor.style.backgroundColor = 'rgba(0, 102, 255, 1)';
+        cursor.style.boxShadow =
+          '0 0 15px 4px rgba(0, 102, 255, 1), inset 0 0 5px rgba(255, 255, 255, 0.5)';
+        setTimeout(() => {
+          cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+          cursor.style.backgroundColor = 'rgba(0, 102, 255, 0.3)';
+          cursor.style.boxShadow =
+            '0 0 10px 2px rgba(0, 102, 255, 0.8), inset 0 0 5px rgba(0, 102, 255, 0.5)';
+          cursor.style.opacity = '0';
+        }, 150);
+      }
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  private async getElementLabel(
+    page: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    x: number,
+    y: number,
+  ): Promise<string | null> {
+    return page.evaluate(
+      ({ x, y }: { x: number; y: number }) => {
+        const el = document.elementFromPoint(x, y);
+        if (!el) return null;
+        const text =
+          (el as HTMLElement).innerText?.trim() ||
+          el.getAttribute('aria-label') ||
+          el.getAttribute('placeholder') ||
+          el.getAttribute('title') ||
+          el.getAttribute('alt');
+        if (text) {
+          return text.slice(0, 30) + (text.length > 30 ? '...' : '');
+        }
+        return el.tagName.toLowerCase();
+      },
+      { x, y },
+    );
+  }
+
   async clickAt(x: number, y: number): Promise<ToolResult> {
-    await this.showOverlay(`Clicking at ${x}, ${y}`);
     const page = await this.browserManager.getPage();
     try {
-      // Model sends coordinates in 0-1000 range, scale to viewport
       const viewport = await this.getViewportSize();
       if (!viewport) {
         return { error: 'Viewport not available' };
       }
       const actualX = (x / 1000) * viewport.width;
       const actualY = (y / 1000) * viewport.height;
+
+      await this.moveMouse(page, actualX, actualY);
+
+      const label = await this.getElementLabel(page, actualX, actualY);
+      const msg = label ? `Clicking "${label}"` : `Clicking at ${x}, ${y}`;
+      await this.showOverlay(msg);
+
       await page.mouse.click(actualX, actualY);
-      return {
-        output: `Clicked at ${x}, ${y} (scaled to ${actualX.toFixed(0)}, ${actualY.toFixed(0)})`,
-      };
+      await this.animateClick(page);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return { output: 'Clicked' };
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       return { error: `Failed to click at ${x}, ${y}: ${message}` };
@@ -177,25 +307,35 @@ export class BrowserTools {
   ): Promise<ToolResult> {
     const page = await this.browserManager.getPage();
     try {
-      // Click to focus
-      await this.clickAt(x, y);
+      const viewport = await this.getViewportSize();
+      if (!viewport) {
+        return { error: 'Viewport not available' };
+      }
+      const actualX = (x / 1000) * viewport.width;
+      const actualY = (y / 1000) * viewport.height;
 
-      // Clear if requested (naive approach: select all + backspace)
+      await this.moveMouse(page, actualX, actualY);
+
+      const label = await this.getElementLabel(page, actualX, actualY);
+      const msg = label
+        ? `Typing "${text}" into ${label}`
+        : `Typing "${text}" at ${x}, ${y}`;
+      await this.showOverlay(msg);
+
+      await page.mouse.click(actualX, actualY);
+      await this.animateClick(page);
+
       if (clearBeforeTyping) {
-        // MacOS: Meta+A, Windows/Linux: Control+A
-        // Playwright handles 'Control' or 'Meta' depending on platform usually,
-        // but we can just send both or check platform.
-        // Safer: click 3 times to select line? Or Ctrl+A.
         await page.keyboard.press('Control+A');
         await page.keyboard.press('Backspace');
       }
 
       await page.keyboard.type(text);
-
       if (pressEnter) {
         await page.keyboard.press('Enter');
       }
-      return { output: `Typed "${text}" at ${x}, ${y}` };
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return { output: `Typed "${text}"` };
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
       return { error: `Failed to type at ${x}, ${y}: ${message}` };
@@ -210,7 +350,7 @@ export class BrowserTools {
   ): Promise<ToolResult> {
     const page = await this.browserManager.getPage();
     try {
-      // Model sends coordinates in 0-1000 range, scale to viewport
+      await this.showOverlay(`Dragging from ${x},${y} to ${destX},${destY}`);
       const viewport = await this.getViewportSize();
       if (!viewport) {
         return { error: 'Viewport not available' };
@@ -220,10 +360,16 @@ export class BrowserTools {
       const actualDestX = (destX / 1000) * viewport.width;
       const actualDestY = (destY / 1000) * viewport.height;
 
+      await this.moveMouse(page, actualX, actualY);
       await page.mouse.move(actualX, actualY);
+      await this.animateClick(page);
       await page.mouse.down();
-      await page.mouse.move(actualDestX, actualDestY, { steps: 5 });
+
+      await this.moveMouse(page, actualDestX, actualDestY);
+      await page.mouse.move(actualDestX, actualDestY);
       await page.mouse.up();
+      await this.animateClick(page);
+
       return { output: `Dragged from ${x},${y} to ${destX},${destY}` };
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e);
@@ -252,37 +398,31 @@ export class BrowserTools {
 
   async scrollDocument(
     direction: 'up' | 'down' | 'left' | 'right',
-    amount: number,
+    amount: number = 500,
   ): Promise<ToolResult> {
     const page = await this.browserManager.getPage();
-    let x = 0;
-    let y = 0;
-    switch (direction) {
-      case 'up':
-        y = -amount;
-        break;
-      case 'down':
-        y = amount;
-        break;
-      case 'left':
-        x = -amount;
-        break;
-      case 'right':
-        x = amount;
-        break;
-      default:
-        break;
+    await this.showScrollIndicator(page, direction);
+    await this.showOverlay(`Scrolling ${direction}`);
+    let deltaX = 0;
+    let deltaY = 0;
+
+    if (direction === 'up') deltaY = -amount;
+    if (direction === 'down') deltaY = amount;
+    if (direction === 'left') deltaX = -amount;
+    if (direction === 'right') deltaX = amount;
+
+    // Smooth scroll implementation
+    const steps = 10;
+    const stepDelay = 30;
+    const stepX = deltaX / steps;
+    const stepY = deltaY / steps;
+
+    for (let i = 0; i < steps; i++) {
+      await page.mouse.wheel(stepX, stepY);
+      await new Promise((resolve) => setTimeout(resolve, stepDelay));
     }
 
-    // Use mouse wheel to scroll, which works on scrollable containers (divs)
-    // unlike window.scrollBy which only works on the main document.
-    // Move mouse to center first to ensure we scroll the main content.
-    const viewport = await this.getViewportSize();
-    if (viewport) {
-      await page.mouse.move(viewport.width / 2, viewport.height / 2);
-    }
-    await page.mouse.wheel(x, y);
-
+    await new Promise((resolve) => setTimeout(resolve, 200));
     return { output: `Scrolled ${direction} by ${amount}` };
   }
 

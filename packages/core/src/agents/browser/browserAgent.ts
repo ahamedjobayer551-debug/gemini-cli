@@ -565,10 +565,19 @@ CRITICAL: When you have fully completed the user's task, you MUST call the compl
             // Collect Function Calls
             if (chunk.functionCalls) {
               functionCalls.push(...chunk.functionCalls);
-              if (printOutput)
-                printOutput(
-                  `🔧 Generating tool call: ${chunk.functionCalls.map((f) => f.name).join(', ')}...`,
-                );
+              if (printOutput) {
+                for (const call of chunk.functionCalls) {
+                  if (call.name === 'delegate_to_visual_agent') {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const instruction = (call.args as any)?.instruction;
+                    if (instruction) {
+                      printOutput(`🤖 Visual Agent: ${instruction}`);
+                      continue;
+                    }
+                  }
+                  printOutput(`🔧 Generating tool call: ${call.name}...`);
+                }
+              }
             }
           }
         }
