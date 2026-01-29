@@ -29,13 +29,7 @@ import {
   type ResumedSessionData,
   AuthType,
   type AgentDefinition,
-  MessageBusType,
-  QuestionType,
 } from '@google/gemini-cli-core';
-import {
-  AskUserActionsContext,
-  type AskUserState,
-} from './contexts/AskUserActionsContext.js';
 
 // Mock coreEvents
 const mockCoreEvents = vi.hoisted(() => ({
@@ -113,11 +107,9 @@ vi.mock('ink', async (importOriginal) => {
 // so we can assert against them in our tests.
 let capturedUIState: UIState;
 let capturedUIActions: UIActions;
-let capturedAskUserRequest: AskUserState | null;
 function TestContextConsumer() {
   capturedUIState = useContext(UIStateContext)!;
   capturedUIActions = useContext(UIActionsContext)!;
-  capturedAskUserRequest = useContext(AskUserActionsContext)?.request ?? null;
   return null;
 }
 
@@ -268,7 +260,6 @@ describe('AppContainer State Management', () => {
     mocks.mockStdout.write.mockClear();
 
     capturedUIState = null!;
-    capturedAskUserRequest = null;
 
     // **Provide a default return value for EVERY mocked hook.**
     mockedUseQuotaAndFallback.mockReturnValue({
@@ -2509,40 +2500,8 @@ describe('AppContainer State Management', () => {
       unmount!();
     });
 
-    it('should show ask user dialog when request is received', async () => {
-      let unmount: () => void;
-      await act(async () => {
-        const result = renderAppContainer();
-        unmount = result.unmount;
-      });
-
-      const questions = [
-        {
-          question: 'What is your favorite color?',
-          header: 'Color Preference',
-          type: QuestionType.TEXT,
-        },
-      ];
-
-      await act(async () => {
-        await mockConfig.getMessageBus().publish({
-          type: MessageBusType.ASK_USER_REQUEST,
-          questions,
-          correlationId: 'test-id',
-        });
-      });
-
-      await waitFor(
-        () => {
-          expect(capturedAskUserRequest).not.toBeNull();
-          expect(capturedAskUserRequest?.questions).toEqual(questions);
-          expect(capturedAskUserRequest?.correlationId).toBe('test-id');
-        },
-        { timeout: 2000 },
-      );
-
-      unmount!();
-    });
+    // Note: askuser now uses the standard tool confirmation flow.
+    // The test for this is in the tool confirmation tests.
   });
 
   describe('Regression Tests', () => {
