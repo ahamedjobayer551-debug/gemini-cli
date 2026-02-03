@@ -117,6 +117,8 @@ export interface UIState {
   showApprovalModeIndicator: ApprovalMode;
   // Quota-related state
   userTier: UserTierId | undefined;
+  quotaRemaining: number | undefined;
+  quotaLimit: number | undefined;
   proQuotaRequest: ProQuotaDialogRequest | null;
   validationRequest: ValidationDialogRequest | null;
   currentModel: string;

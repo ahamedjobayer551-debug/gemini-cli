@@ -7,6 +7,7 @@
 import { getErrorMessage, isNodeError } from './errors.js';
 import { URL } from 'node:url';
 import { ProxyAgent, setGlobalDispatcher } from 'undici';
+import { extractQuotaFromHeaders } from './googleQuotaErrors.js';
 
 const PRIVATE_IP_RANGES = [
   /^10\./,
@@ -60,4 +61,24 @@ export async function fetchWithTimeout(
 
 export function setGlobalProxy(proxy: string) {
   setGlobalDispatcher(new ProxyAgent(proxy));
+}
+
+export function wrapFetchWithQuotaInterception(
+  fetchFn: typeof fetch,
+  onQuotaUpdate: (
+    remaining: number | undefined,
+    limit: number | undefined,
+  ) => void,
+): typeof fetch {
+  return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await fetchFn(input, init);
+
+    const { remaining, limit } = extractQuotaFromHeaders(response.headers);
+
+    if (remaining !== undefined || limit !== undefined) {
+      onQuotaUpdate(remaining, limit);
+    }
+
+    return response;
+  };
 }

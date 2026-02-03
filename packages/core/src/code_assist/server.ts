@@ -48,6 +48,7 @@ import {
   toCountTokenRequest,
   toGenerateContentRequest,
 } from './converter.js';
+import { extractQuotaFromHeaders } from '../utils/googleQuotaErrors.js';
 import {
   formatProtoJsonDuration,
   recordConversationOffered,
@@ -70,6 +71,10 @@ export class CodeAssistServer implements ContentGenerator {
     readonly sessionId?: string,
     readonly userTier?: UserTierId,
     readonly userTierName?: string,
+    readonly onQuotaUpdate?: (
+      remaining: number | undefined,
+      limit: number | undefined,
+    ) => void,
   ) {}
 
   async generateContentStream(
@@ -285,6 +290,16 @@ export class CodeAssistServer implements ContentGenerator {
     return this.requestPost<void>('recordCodeAssistMetrics', request);
   }
 
+  private extractQuotaHeaders(headers: Record<string, string | string[]>) {
+    if (!this.onQuotaUpdate) return;
+
+    const { remaining, limit } = extractQuotaFromHeaders(headers);
+
+    if (remaining !== undefined || limit !== undefined) {
+      this.onQuotaUpdate(remaining, limit);
+    }
+  }
+
   async requestPost<T>(
     method: string,
     req: object,
@@ -301,6 +316,7 @@ export class CodeAssistServer implements ContentGenerator {
       body: JSON.stringify(req),
       signal,
     });
+    this.extractQuotaHeaders(res.headers as Record<string, string | string[]>);
     return res.data as T;
   }
 
@@ -318,6 +334,7 @@ export class CodeAssistServer implements ContentGenerator {
       responseType: 'json',
       signal,
     });
+    this.extractQuotaHeaders(res.headers as Record<string, string | string[]>);
     return res.data as T;
   }
 
@@ -348,6 +365,8 @@ export class CodeAssistServer implements ContentGenerator {
       body: JSON.stringify(req),
       signal,
     });
+
+    this.extractQuotaHeaders(res.headers as Record<string, string | string[]>);
 
     return (async function* (): AsyncGenerator<T> {
       const rl = readline.createInterface({

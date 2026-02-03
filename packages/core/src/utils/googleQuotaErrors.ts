@@ -166,6 +166,50 @@ function classifyValidationRequiredError(
     learnMoreUrl,
   );
 }
+
+/**
+ * Extracts quota information from response headers.
+ * Supports both standard Fetch Headers and plain object headers (like from gaxios).
+ */
+export function extractQuotaFromHeaders(
+  headers: Headers | Record<string, string | string[] | undefined | null>,
+): { remaining?: number; limit?: number } {
+  const getHeader = (name: string): string | null | undefined => {
+    if ('get' in headers && typeof headers.get === 'function') {
+      return (headers as Headers).get(name);
+    }
+    const record = headers as Record<
+      string,
+      string | string[] | undefined | null
+    >;
+    const val = record[name] ?? record[name.toLowerCase()];
+    if (Array.isArray(val)) {
+      return val[0];
+    }
+    return val;
+  };
+
+  const remaining =
+    getHeader('x-ratelimit-remaining') ||
+    getHeader('X-RateLimit-Remaining') ||
+    getHeader('x-goog-ratelimit-remaining');
+  const limit =
+    getHeader('x-ratelimit-limit') ||
+    getHeader('X-RateLimit-Limit') ||
+    getHeader('x-goog-ratelimit-limit');
+
+  const parseHeader = (val: string | null | undefined) => {
+    if (!val) return undefined;
+    const num = parseInt(val, 10);
+    return isNaN(num) ? undefined : num;
+  };
+
+  return {
+    remaining: parseHeader(remaining),
+    limit: parseHeader(limit),
+  };
+}
+
 /**
  * Analyzes a caught error and classifies it as a specific error type if applicable.
  *

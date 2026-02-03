@@ -364,6 +364,12 @@ export const AppContainer = (props: AppContainerProps) => {
   const [currentModel, setCurrentModel] = useState(config.getModel());
 
   const [userTier, setUserTier] = useState<UserTierId | undefined>(undefined);
+  const [quotaRemaining, setQuotaRemaining] = useState<number | undefined>(
+    config.getQuotaRemaining(),
+  );
+  const [quotaLimit, setQuotaLimit] = useState<number | undefined>(
+    config.getQuotaLimit(),
+  );
 
   const [isConfigInitialized, setConfigInitialized] = useState(false);
 
@@ -466,9 +472,19 @@ export const AppContainer = (props: AppContainerProps) => {
       setCurrentModel(config.getModel());
     };
 
+    const handleQuotaChanged = (payload: {
+      remaining: number | undefined;
+      limit: number | undefined;
+    }) => {
+      setQuotaRemaining(payload.remaining);
+      setQuotaLimit(payload.limit);
+    };
+
     coreEvents.on(CoreEvent.ModelChanged, handleModelChanged);
+    coreEvents.on(CoreEvent.QuotaChanged, handleQuotaChanged);
     return () => {
       coreEvents.off(CoreEvent.ModelChanged, handleModelChanged);
+      coreEvents.off(CoreEvent.QuotaChanged, handleQuotaChanged);
     };
   }, [config]);
 
@@ -1907,6 +1923,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       showApprovalModeIndicator,
       currentModel,
       userTier,
+      quotaRemaining,
+      quotaLimit,
       proQuotaRequest,
       validationRequest,
       contextFileNames,
@@ -2011,6 +2029,8 @@ Logging in with Google... Restarting Gemini CLI to continue.
       queueErrorMessage,
       showApprovalModeIndicator,
       userTier,
+      quotaRemaining,
+      quotaLimit,
       proQuotaRequest,
       validationRequest,
       contextFileNames,

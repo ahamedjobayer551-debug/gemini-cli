@@ -612,4 +612,31 @@ describe('CodeAssistServer', () => {
     expect(requestPostSpy).toHaveBeenCalledWith('retrieveUserQuota', req);
     expect(response).toEqual(mockResponse);
   });
+
+  it('should extract quota headers from response', async () => {
+    const onQuotaUpdate = vi.fn();
+    const mockRequest = vi.fn();
+    const client = { request: mockRequest } as unknown as OAuth2Client;
+    const server = new CodeAssistServer(
+      client,
+      'test-project',
+      {},
+      'test-session',
+      UserTierId.FREE,
+      undefined,
+      onQuotaUpdate,
+    );
+
+    mockRequest.mockResolvedValue({
+      data: {},
+      headers: {
+        'x-ratelimit-remaining': '85',
+        'x-ratelimit-limit': '100',
+      },
+    });
+
+    await server.requestPost('testMethod', {});
+
+    expect(onQuotaUpdate).toHaveBeenCalledWith(85, 100);
+  });
 });

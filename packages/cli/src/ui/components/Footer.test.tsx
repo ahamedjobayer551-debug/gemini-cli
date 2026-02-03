@@ -133,6 +133,18 @@ describe('<Footer />', () => {
     expect(lastFrame()).toMatch(/\(\d+% context left\)/);
   });
 
+  it('displays the quota indicator when quota info is available', () => {
+    const { lastFrame } = renderWithProviders(<Footer />, {
+      width: 120,
+      uiState: {
+        sessionStats: mockSessionStats,
+        quotaRemaining: 85,
+        quotaLimit: 100,
+      },
+    });
+    expect(lastFrame()).toContain('[Quota: 85.0%]');
+  });
+
   it('displays the model name and abbreviated context percentage', () => {
     const { lastFrame } = renderWithProviders(<Footer />, {
       width: 99,

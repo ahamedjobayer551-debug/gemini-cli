@@ -32,6 +32,7 @@ export async function createCodeAssistContentGenerator(
       sessionId,
       userData.userTier,
       userData.userTierName,
+      (remaining, limit) => config.setQuota(remaining, limit),
     );
   }
 

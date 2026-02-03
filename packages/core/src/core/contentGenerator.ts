@@ -23,7 +23,9 @@ import { InstallationManager } from '../utils/installationManager.js';
 import { FakeContentGenerator } from './fakeContentGenerator.js';
 import { parseCustomHeaders } from '../utils/customHeaderUtils.js';
 import { RecordingContentGenerator } from './recordingContentGenerator.js';
-import { getVersion, resolveModel } from '../../index.js';
+import { resolveModel } from '../config/models.js';
+import { getVersion } from '../utils/version.js';
+import { wrapFetchWithQuotaInterception } from '../utils/fetch.js';
 
 /**
  * Interface abstracting the core functionalities for generating content and counting tokens.
@@ -176,7 +178,12 @@ export async function createContentGenerator(
           'x-gemini-api-privileged-user-id': `${installationId}`,
         };
       }
-      const httpOptions = { headers };
+      const httpOptions = {
+        headers,
+        fetch: wrapFetchWithQuotaInterception(fetch, (remaining, limit) =>
+          gcConfig.setQuota(remaining, limit),
+        ),
+      };
 
       const googleGenAI = new GoogleGenAI({
         apiKey: config.apiKey === '' ? undefined : config.apiKey,
