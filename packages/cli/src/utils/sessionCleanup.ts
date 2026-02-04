@@ -348,8 +348,12 @@ export async function cleanupToolOutputFiles(
     }
 
     const retentionConfig = settings.general.sessionRetention;
-    const tempDir =
-      projectTempDir ?? new Storage(process.cwd()).getProjectTempDir();
+    let tempDir = projectTempDir;
+    if (!tempDir) {
+      const storage = new Storage(process.cwd());
+      await storage.initialize();
+      tempDir = storage.getProjectTempDir();
+    }
     const toolOutputDir = path.join(tempDir, TOOL_OUTPUT_DIR);
 
     // Check if directory exists
