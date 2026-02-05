@@ -379,6 +379,13 @@ export class LoadedSettings {
   }
 
   setValue(scope: LoadableSettingScope, key: string, value: unknown): void {
+    if (
+      scope === SettingScope.System ||
+      scope === SettingScope.SystemDefaults
+    ) {
+      this.setValueInMemory(scope, key, value);
+      return;
+    }
     const settingsFile = this.forScope(scope);
 
     // Clone value to prevent reference sharing between settings and originalSettings
@@ -397,6 +404,30 @@ export class LoadedSettings {
 
     this._merged = this.computeMergedSettings();
     saveSettings(settingsFile);
+    coreEvents.emitSettingsChanged();
+  }
+
+  /**
+   * Updates a setting value only in memory.
+   * This is used for migrations where we want the migrated values to be available
+   * but don't want to (or can't) save them back to the settings file.
+   */
+  setValueInMemory(
+    scope: LoadableSettingScope,
+    key: string,
+    value: unknown,
+  ): void {
+    const settingsFile = this.forScope(scope);
+
+    // Clone value to prevent reference sharing
+    const valueToSet =
+      typeof value === 'object' && value !== null
+        ? structuredClone(value)
+        : value;
+
+    setNestedProperty(settingsFile.settings, key, valueToSet);
+
+    this._merged = this.computeMergedSettings();
     coreEvents.emitSettingsChanged();
   }
 
@@ -758,17 +789,22 @@ export function migrateDeprecatedSettings(
   removeDeprecated = false,
 ): boolean {
   let anyModified = false;
+  const systemWarnings: Map<LoadableSettingScope, string[]> = new Map();
 
   const migrateBoolean = (
     settings: Record<string, unknown>,
     oldKey: string,
     newKey: string,
+    foundDeprecated?: string[],
   ): boolean => {
     let modified = false;
     const oldValue = settings[oldKey];
     const newValue = settings[newKey];
 
     if (typeof oldValue === 'boolean') {
+      if (foundDeprecated) {
+        foundDeprecated.push(oldKey);
+      }
       if (typeof newValue === 'boolean') {
         // Both exist, trust the new one
         if (removeDeprecated) {
@@ -788,7 +824,10 @@ export function migrateDeprecatedSettings(
   };
 
   const processScope = (scope: LoadableSettingScope) => {
+    const isSystemScope =
+      scope === SettingScope.System || scope === SettingScope.SystemDefaults;
     const settings = loadedSettings.forScope(scope).settings;
+    const foundDeprecated: string[] = [];
 
     // Migrate general settings
     const generalSettings = settings.general as
@@ -799,18 +838,25 @@ export function migrateDeprecatedSettings(
       let modified = false;
 
       modified =
-        migrateBoolean(newGeneral, 'disableAutoUpdate', 'enableAutoUpdate') ||
-        modified;
+        migrateBoolean(
+          newGeneral,
+          'disableAutoUpdate',
+          'enableAutoUpdate',
+          foundDeprecated,
+        ) || modified;
       modified =
         migrateBoolean(
           newGeneral,
           'disableUpdateNag',
           'enableAutoUpdateNotification',
+          foundDeprecated,
         ) || modified;
 
       if (modified) {
         loadedSettings.setValue(scope, 'general', newGeneral);
-        anyModified = true;
+        if (!isSystemScope) {
+          anyModified = true;
+        }
       }
     }
 
@@ -829,11 +875,14 @@ export function migrateDeprecatedSettings(
             newAccessibility,
             'disableLoadingPhrases',
             'enableLoadingPhrases',
+            foundDeprecated,
           )
         ) {
           newUi['accessibility'] = newAccessibility;
           loadedSettings.setValue(scope, 'ui', newUi);
-          anyModified = true;
+          if (!isSystemScope) {
+            anyModified = true;
+          }
         }
       }
     }
@@ -855,29 +904,53 @@ export function migrateDeprecatedSettings(
             newFileFiltering,
             'disableFuzzySearch',
             'enableFuzzySearch',
+            foundDeprecated,
           )
         ) {
           newContext['fileFiltering'] = newFileFiltering;
           loadedSettings.setValue(scope, 'context', newContext);
-          anyModified = true;
+          if (!isSystemScope) {
+            anyModified = true;
+          }
         }
       }
     }
 
     // Migrate experimental agent settings
-    anyModified =
-      migrateExperimentalSettings(
-        settings,
-        loadedSettings,
-        scope,
-        removeDeprecated,
-      ) || anyModified;
+    const experimentalModified = migrateExperimentalSettings(
+      settings,
+      loadedSettings,
+      scope,
+      removeDeprecated,
+      foundDeprecated,
+    );
+
+    if (experimentalModified) {
+      if (!isSystemScope) {
+        anyModified = true;
+      }
+    }
+
+    if (isSystemScope && foundDeprecated.length > 0) {
+      systemWarnings.set(scope, foundDeprecated);
+    }
   };
 
   processScope(SettingScope.User);
   processScope(SettingScope.Workspace);
   processScope(SettingScope.System);
   processScope(SettingScope.SystemDefaults);
+
+  if (systemWarnings.size > 0) {
+    for (const [scope, flags] of systemWarnings) {
+      const scopeName =
+        scope === SettingScope.System ? 'system' : 'system default';
+      coreEvents.emitFeedback(
+        'warning',
+        `The ${scopeName} configuration contains deprecated settings: [${flags.join(', ')}]. These could not be migrated automatically as system settings are read-only. Please update the system configuration manually.`,
+      );
+    }
+  }
 
   return anyModified;
 }
@@ -926,6 +999,7 @@ function migrateExperimentalSettings(
   loadedSettings: LoadedSettings,
   scope: LoadableSettingScope,
   removeDeprecated: boolean,
+  foundDeprecated?: string[],
 ): boolean {
   const experimentalSettings = settings.experimental as
     | Record<string, unknown>
@@ -941,6 +1015,9 @@ function migrateExperimentalSettings(
 
     // Migrate codebaseInvestigatorSettings -> agents.overrides.codebase_investigator
     if (experimentalSettings['codebaseInvestigatorSettings']) {
+      if (foundDeprecated) {
+        foundDeprecated.push('experimental.codebaseInvestigatorSettings');
+      }
       const old = experimentalSettings[
         'codebaseInvestigatorSettings'
       ] as Record<string, unknown>;
@@ -990,6 +1067,9 @@ function migrateExperimentalSettings(
 
     // Migrate cliHelpAgentSettings -> agents.overrides.cli_help
     if (experimentalSettings['cliHelpAgentSettings']) {
+      if (foundDeprecated) {
+        foundDeprecated.push('experimental.cliHelpAgentSettings');
+      }
       const old = experimentalSettings['cliHelpAgentSettings'] as Record<
         string,
         unknown
