@@ -1662,7 +1662,6 @@ describe('loggers', () => {
         originalContentLength: 1000,
         truncatedContentLength: 100,
         threshold: 500,
-        lines: 10,
       });
 
       logToolOutputTruncated(mockConfig, event);
@@ -1682,7 +1681,6 @@ describe('loggers', () => {
           original_content_length: 1000,
           truncated_content_length: 100,
           threshold: 500,
-          lines: 10,
         },
       });
     });

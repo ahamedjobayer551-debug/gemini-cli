@@ -508,7 +508,7 @@ describe('ChatCompressionService', () => {
       const keptHistory = result.newHistory!.slice(2); // After summary and 'Got it'
       const truncatedPart = keptHistory[1].parts![0].functionResponse;
       expect(truncatedPart?.response?.['output']).toContain(
-        'Output too large.',
+        'Output truncated.',
       );
 
       // Verify a file was actually created in the tool_output subdirectory
@@ -581,10 +581,8 @@ describe('ChatCompressionService', () => {
       const truncatedPart = shellResponse!.parts![0].functionResponse;
       const content = truncatedPart?.response?.['output'] as string;
 
-      expect(content).toContain(
-        'Output too large. Showing the last 4,000 characters of the output.',
-      );
-      // It's a single line, so NO [LINE WIDTH TRUNCATED]
+      // COMPRESSION_TRUNCATE_LINES = 30 -> head=6 (20%), tail=24 (80%)
+      expect(content).toContain('Showing first 6 and last 24 characters');
     });
 
     it('should use character-based truncation for massive single-line raw strings', async () => {
@@ -645,9 +643,8 @@ describe('ChatCompressionService', () => {
       const truncatedPart = rawResponse!.parts![0].functionResponse;
       const content = truncatedPart?.response?.['output'] as string;
 
-      expect(content).toContain(
-        'Output too large. Showing the last 4,000 characters of the output.',
-      );
+      // COMPRESSION_TRUNCATE_LINES = 30 -> head=6 (20%), tail=24 (80%)
+      expect(content).toContain('Showing first 6 and last 24 characters');
     });
 
     it('should fallback to original content and still update budget if truncation fails', async () => {
@@ -779,7 +776,7 @@ describe('ChatCompressionService', () => {
       );
       const preservedPart = preservedToolTurn!.parts![0].functionResponse;
       expect(preservedPart?.response?.['output']).toContain(
-        'Output too large.',
+        'Output truncated.',
       );
     });
 
@@ -826,7 +823,7 @@ describe('ChatCompressionService', () => {
         historySentToSummarizer[0].parts![0].functionResponse;
       // Should be truncated because original > 1M tokens
       expect(summarizerGrepResponse?.response?.['output']).toContain(
-        'Output too large.',
+        'Output truncated.',
       );
     });
   });

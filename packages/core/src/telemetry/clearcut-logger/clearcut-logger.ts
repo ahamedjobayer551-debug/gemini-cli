@@ -1209,10 +1209,6 @@ export class ClearcutLogger {
           EventMetadataKey.GEMINI_CLI_TOOL_OUTPUT_TRUNCATED_THRESHOLD,
         value: JSON.stringify(event.threshold),
       },
-      {
-        gemini_cli_key: EventMetadataKey.GEMINI_CLI_TOOL_OUTPUT_TRUNCATED_LINES,
-        value: JSON.stringify(event.lines),
-      },
     ];
 
     this.enqueueLogEvent(
