@@ -10,7 +10,7 @@
  * @see https://a2a-protocol.org/latest/specification/#451-securityscheme
  */
 
-import type { AuthenticationHandler } from '@a2a-js/sdk/client';
+import type { AuthenticationHandler, HttpHeaders } from '@a2a-js/sdk/client';
 
 export type A2AAuthProviderType =
   | 'google-credentials'
@@ -22,6 +22,7 @@ export type A2AAuthProviderType =
 export interface A2AAuthProvider extends AuthenticationHandler {
   readonly type: A2AAuthProviderType;
   initialize?(): Promise<void>;
+  dispose?(): Promise<void>;
 }
 
 export interface BaseAuthConfig {
@@ -98,3 +99,5 @@ export interface AuthValidationResult {
   valid: boolean;
   diff?: AuthConfigDiff;
 }
+
+export type { AuthenticationHandler, HttpHeaders };
