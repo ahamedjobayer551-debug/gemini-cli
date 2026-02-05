@@ -11,6 +11,7 @@ import type { Config } from '../config/config.js';
 import { GEMINI_DIR } from '../utils/paths.js';
 import { ApprovalMode } from '../policy/types.js';
 import * as snippets from './snippets.js';
+import * as legacySnippets from './snippets.legacy.js';
 import {
   resolvePathFromEnv,
   applySubstitutions,
@@ -53,6 +54,19 @@ export class PromptProvider {
       config.getPreviewFeatures(),
     );
     const isGemini3 = isPreviewModel(desiredModel);
+    const activeSnippets = isGemini3 ? snippets : legacySnippets;
+
+    // --- Context Gathering ---
+    const planOptions: snippets.ApprovalModePlanOptions | undefined = isPlanMode
+      ? {
+          planModeToolsList: PLAN_MODE_TOOLS.filter((t) =>
+            new Set(toolNames).has(t),
+          )
+            .map((t) => `- \`${t}\``)
+            .join('\n'),
+          plansDir: config.storage.getProjectTempPlansDir(),
+        }
+      : undefined;
 
     let basePrompt: string;
 
@@ -66,7 +80,7 @@ export class PromptProvider {
         throw new Error(`missing system prompt file '${systemMdPath}'`);
       }
       basePrompt = fs.readFileSync(systemMdPath, 'utf8');
-      const skillsPrompt = snippets.renderAgentSkills(
+      const skillsPrompt = activeSnippets.renderAgentSkills(
         skills.map((s) => ({
           name: s.name,
           description: s.description,
@@ -141,11 +155,15 @@ export class PromptProvider {
         })),
       };
 
-      basePrompt = snippets.getCoreSystemPrompt(options);
+      basePrompt = activeSnippets.getCoreSystemPrompt(options);
     }
 
     // --- Finalization (Shell) ---
-    const finalPrompt = snippets.renderFinalShell(basePrompt, userMemory);
+    const finalPrompt = activeSnippets.renderFinalShell(
+      basePrompt,
+      userMemory,
+      planOptions,
+    );
 
     // Sanitize erratic newlines from composition
     const sanitizedPrompt = finalPrompt.replace(/\n{3,}/g, '\n\n');
@@ -160,8 +178,14 @@ export class PromptProvider {
     return sanitizedPrompt;
   }
 
-  getCompressionPrompt(): string {
-    return snippets.getCompressionPrompt();
+  getCompressionPrompt(config: Config): string {
+    const desiredModel = resolveModel(
+      config.getActiveModel(),
+      config.getPreviewFeatures(),
+    );
+    const isGemini3 = isPreviewModel(desiredModel);
+    const activeSnippets = isGemini3 ? snippets : legacySnippets;
+    return activeSnippets.getCompressionPrompt();
   }
 
   private withSection<T>(

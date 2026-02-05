@@ -341,7 +341,7 @@ export class ChatCompressionService {
           ],
         },
       ],
-      systemInstruction: { text: getCompressionPrompt() },
+      systemInstruction: { text: getCompressionPrompt(config) },
       promptId,
       // TODO(joshualitt): wire up a sensible abort signal,
       abortSignal: abortSignal ?? new AbortController().signal,
@@ -369,7 +369,7 @@ export class ChatCompressionService {
             ],
           },
         ],
-        systemInstruction: { text: getCompressionPrompt() },
+        systemInstruction: { text: getCompressionPrompt(config) },
         promptId: `${promptId}-verify`,
         abortSignal: abortSignal ?? new AbortController().signal,
       });

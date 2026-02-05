@@ -126,10 +126,22 @@ describe('Core System Prompt (prompts.ts)', () => {
     expect(prompt).not.toContain('activate_skill');
   });
 
+  it('should use legacy system prompt for non-preview model', () => {
+    vi.mocked(mockConfig.getActiveModel).mockReturnValue(DEFAULT_GEMINI_MODEL);
+    vi.mocked(mockConfig.getPreviewFeatures).mockReturnValue(false);
+    const prompt = getCoreSystemPrompt(mockConfig);
+    expect(prompt).toContain(
+      'You are an interactive CLI agent specializing in software engineering tasks.',
+    );
+    expect(prompt).toContain('# Core Mandates');
+    expect(prompt).toContain('- **Conventions:**');
+    expect(prompt).toMatchSnapshot();
+  });
+
   it('should use chatty system prompt for preview model', () => {
     vi.mocked(mockConfig.getActiveModel).mockReturnValue(PREVIEW_GEMINI_MODEL);
     const prompt = getCoreSystemPrompt(mockConfig);
-    expect(prompt).toContain('You are an interactive CLI agent'); // Check for core content
+    expect(prompt).toContain('You are Gemini CLI, an interactive CLI agent'); // Check for core content
     expect(prompt).toContain('No Chitchat:');
     expect(prompt).toMatchSnapshot();
   });
@@ -139,7 +151,7 @@ describe('Core System Prompt (prompts.ts)', () => {
       PREVIEW_GEMINI_FLASH_MODEL,
     );
     const prompt = getCoreSystemPrompt(mockConfig);
-    expect(prompt).toContain('You are an interactive CLI agent'); // Check for core content
+    expect(prompt).toContain('You are Gemini CLI, an interactive CLI agent'); // Check for core content
     expect(prompt).toContain('No Chitchat:');
     expect(prompt).toMatchSnapshot();
   });
@@ -149,21 +161,26 @@ describe('Core System Prompt (prompts.ts)', () => {
     ['whitespace only', '   \n  \t '],
   ])('should return the base prompt when userMemory is %s', (_, userMemory) => {
     vi.stubEnv('SANDBOX', undefined);
+    vi.mocked(mockConfig.getActiveModel).mockReturnValue(PREVIEW_GEMINI_MODEL);
+    vi.mocked(mockConfig.getPreviewFeatures).mockReturnValue(true);
     const prompt = getCoreSystemPrompt(mockConfig, userMemory);
     expect(prompt).not.toContain('---\n\n'); // Separator should not be present
-    expect(prompt).toContain('You are an interactive CLI agent'); // Check for core content
+    expect(prompt).toContain('You are Gemini CLI, an interactive CLI agent'); // Check for core content
     expect(prompt).toContain('No Chitchat:');
     expect(prompt).toMatchSnapshot(); // Use snapshot for base prompt structure
   });
 
   it('should append userMemory with separator when provided', () => {
     vi.stubEnv('SANDBOX', undefined);
+    vi.mocked(mockConfig.getActiveModel).mockReturnValue(PREVIEW_GEMINI_MODEL);
+    vi.mocked(mockConfig.getPreviewFeatures).mockReturnValue(true);
     const memory = 'This is custom user memory.\nBe extra polite.';
-    const expectedSuffix = `\n\n---\n\n${memory}`;
     const prompt = getCoreSystemPrompt(mockConfig, memory);
 
-    expect(prompt.endsWith(expectedSuffix)).toBe(true);
-    expect(prompt).toContain('You are an interactive CLI agent'); // Ensure base prompt follows
+    expect(prompt).toContain('# Contextual Instructions (GEMINI.md)');
+    expect(prompt).toContain('<loaded_context>');
+    expect(prompt).toContain(memory);
+    expect(prompt).toContain('You are Gemini CLI, an interactive CLI agent'); // Ensure base prompt follows
     expect(prompt).toMatchSnapshot(); // Snapshot the combined prompt
   });
 
@@ -224,8 +241,8 @@ describe('Core System Prompt (prompts.ts)', () => {
         isInteractiveShellEnabled: vi.fn().mockReturnValue(false),
         isAgentsEnabled: vi.fn().mockReturnValue(false),
         getModel: vi.fn().mockReturnValue('auto'),
-        getActiveModel: vi.fn().mockReturnValue(DEFAULT_GEMINI_MODEL),
-        getPreviewFeatures: vi.fn().mockReturnValue(false),
+        getActiveModel: vi.fn().mockReturnValue(PREVIEW_GEMINI_MODEL),
+        getPreviewFeatures: vi.fn().mockReturnValue(true),
         getAgentRegistry: vi.fn().mockReturnValue({
           getDirectoryContext: vi.fn().mockReturnValue('Mock Agent Directory'),
         }),
@@ -237,15 +254,14 @@ describe('Core System Prompt (prompts.ts)', () => {
       const prompt = getCoreSystemPrompt(testConfig);
       if (expectCodebaseInvestigator) {
         expect(prompt).toContain(
-          `your **first and primary action** must be to delegate to the '${CodebaseInvestigatorAgent.name}' agent`,
+          `Utilize specialized sub-agents (e.g., \`codebase_investigator\`) as the primary mechanism for initial discovery`,
         );
-        expect(prompt).toContain(`do not ignore the output of the agent`);
         expect(prompt).not.toContain(
           "Use 'grep_search' and 'glob' search tools extensively",
         );
       } else {
         expect(prompt).not.toContain(
-          `your **first and primary action** must be to delegate to the '${CodebaseInvestigatorAgent.name}' agent`,
+          `Utilize specialized sub-agents (e.g., \`codebase_investigator\`) as the primary mechanism for initial discovery`,
         );
         expect(prompt).toContain(
           "Use 'grep_search' and 'glob' search tools extensively",

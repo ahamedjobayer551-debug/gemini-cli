@@ -228,6 +228,10 @@ class GrepToolInvocation extends BaseToolInvocation<
         signal.removeEventListener('abort', onAbort);
       }
 
+      if (allMatches.length > DEFAULT_TOTAL_MAX_MATCHES) {
+        allMatches = allMatches.slice(0, DEFAULT_TOTAL_MAX_MATCHES);
+      }
+
       let searchLocationDescription: string;
       if (searchDirAbs === null) {
         const numDirs = workspaceContext.getDirectories().length;
